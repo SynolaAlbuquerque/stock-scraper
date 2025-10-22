@@ -1,6 +1,6 @@
 pip install yfinance
 import yfinance as yf
-data = yf.download("RELIANCE.NS", period="6mo", interval="1d")
+data = yf.download("AAPL", period="6mo", interval="1d")
 print(data.head())
 data.to_csv("apple_stock_data.csv")
 from google.colab import files
