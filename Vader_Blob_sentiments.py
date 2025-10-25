@@ -1,4 +1,5 @@
 #headlines weighted using vader and textblob and downloaded in csv format using pandas 
+#link- https://colab.research.google.com/drive/1ZQiJSoUESrrpDyu7CroThB9gmsXQm8Vo?usp=sharing
 
 pip install newsapi-python
 pip install pandas textblob vaderSentiment
