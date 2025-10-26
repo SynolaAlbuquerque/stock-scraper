@@ -90,3 +90,70 @@ plt.grid(alpha=0.3)
 plt.show()
 
 print("📈 Feature-enriched LightGBM analysis complete.")
+
+# ================== STEP 17: CLASSIFICATION EVALUATION ON ENRICHED MODEL ==================
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, roc_curve, auc
+
+# 1. Define classification target: next-day up/down direction
+df['next_close'] = df['Close'].shift(-1)
+df['next_change'] = df['next_close'] - df['Close']
+df['direction'] = (df['next_change'] > 0).astype(int)
+
+# 2. Align features (drop last NaN after shift)
+df_cls = df.dropna().reset_index(drop=True)
+X_cls = df_cls[features]
+y_cls = df_cls['direction']
+
+# 3. Train/test split (time-ordered)
+split_idx = int(0.8 * len(df_cls))
+X_train_cls, X_test_cls = X_cls.iloc[:split_idx], X_cls.iloc[split_idx:]
+y_train_cls, y_test_cls = y_cls.iloc[:split_idx], y_cls.iloc[split_idx:]
+
+# 4. Train a LightGBMClassifier with same hyperparams
+from lightgbm import LGBMClassifier
+clf_params = {
+    'n_estimators': 500,
+    'learning_rate': 0.05,
+    'num_leaves': 31,
+    'max_depth': -1,
+    'subsample': 0.8,
+    'colsample_bytree': 0.8,
+    'random_state': 42
+}
+clf = LGBMClassifier(**clf_params)
+clf.fit(X_train_cls, y_train_cls)
+
+# 5. Predictions & evaluation
+y_pred_cls = clf.predict(X_test_cls)
+y_pred_proba = clf.predict_proba(X_test_cls)[:,1]
+
+acc = accuracy_score(y_test_cls, y_pred_cls)
+cm = confusion_matrix(y_test_cls, y_pred_cls)
+report = classification_report(y_test_cls, y_pred_cls, digits=3)
+
+print(f"✅ Classification Accuracy: {acc:.3f}")
+print("\n📊 Classification Report:\n", report)
+
+# 6. Confusion Matrix
+plt.figure(figsize=(6,5))
+sns.heatmap(cm, annot=True, fmt='d', cbar=False, cmap='viridis', linewidths=1, linecolor='black')
+plt.title('LightGBM Classification Confusion Matrix', fontsize=14)
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.show()
+
+# 7. ROC Curve
+fpr, tpr, _ = roc_curve(y_test_cls, y_pred_proba)
+roc_auc = auc(fpr, tpr)
+
+plt.figure(figsize=(6,5))
+plt.plot(fpr, tpr, color='orange', lw=2, label=f'ROC curve (AUC = {roc_auc:.3f})')
+plt.plot([0,1], [0,1], color='blue', linestyle='--')
+plt.title('ROC Curve (Up vs Down)', fontsize=14)
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend()
+plt.grid(alpha=0.3)
+plt.show()
+
+print("📈 Classification evaluation complete.")
