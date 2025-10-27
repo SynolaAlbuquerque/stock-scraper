@@ -125,6 +125,3 @@ This case study demonstrates that financial news sentiment can provide meaningfu
 While sentiment alone cannot capture all market dynamics, integrating it with market data offers valuable predictive insight.
 The approach highlights the potential of combining **textual analysis** and **financial modeling** to better understand and anticipate stock market movements.
 
----
-
-Would you like me to make this more **concise and slide-friendly** (for inclusion in a presentation summary), or keep it in this **detailed report style**?
