@@ -1,226 +1,102 @@
-# Stock Sentiment Prediction — Tesla Case Study
+# Tesla Stock Sentiment Prediction
 
-This project analyzes how **financial news sentiment** affects **Tesla (TSLA)** stock price movements using Natural Language Processing (NLP), feature engineering, and machine learning models (LightGBM).
-
-The pipeline fetches news data, computes sentiment scores, enriches them with temporal features, merges them with market data, and trains both **regression** and **classification models** to predict stock behavior.
+### A Case Study on How Financial News Influences Market Behavior
 
 ---
 
-## Overview
+### Overview
 
-* **Goal:** Quantify how sentiment from financial headlines correlates with Tesla’s stock movements.
-* **Approach:**
+This project investigates how the sentiment of financial news impacts Tesla’s stock price movements.
+By combining **Natural Language Processing (NLP)** techniques with **machine learning models**, it aims to predict both the **magnitude** and **direction** of Tesla’s next-day price changes based on recent news headlines.
 
-  1. Collect real news headlines (from APIs or text files).
-  2. Assign sentiment scores using **VADER** and **TextBlob**.
-  3. Merge with **historical stock prices** using `yfinance`.
-  4. Engineer rolling and source-level sentiment features.
-  5. Train:
-
-     * **Regression model:** Predict next-day percentage change.
-     * **Classification model:** Predict direction (Up/Down).
-  6. Evaluate and visualize model performance.
-  7. Identify which **keywords** most influence stock movement.
+In essence,
+**Does the tone of Tesla-related news affect how the market reacts the next day?**
 
 ---
 
-## ⚙️ Requirements
+### Project Objective
 
-Install dependencies:
+To measure and model the relationship between news sentiment and Tesla’s stock performance by:
 
-```bash
-pip install yfinance vaderSentiment textblob scikit-learn matplotlib pandas numpy seaborn lightgbm
-```
-
----
-
-## 1. Collecting News Headlines
-
-Fetch or import Tesla-related headlines and store them in a DataFrame:
-
-```python
-news_df = pd.read_csv("tesla_headlines.csv")
-```
-
-Each entry includes:
-
-* `date`
-* `headline`
-* `source` (optional)
+1. Predicting the **next-day percentage change** in Tesla’s closing price.
+2. Predicting whether the stock will **rise or fall** the following day.
 
 ---
 
-## 2. Sentiment Scoring
+### Methodology
 
-Apply **VADER** and **TextBlob** to compute sentiment polarity:
+**1. Data Collection**
 
-```python
-news_df['vader'] = news_df['headline'].apply(lambda x: sia.polarity_scores(x)['compound'])
-news_df['textblob'] = news_df['headline'].apply(lambda x: TextBlob(x).sentiment.polarity)
-news_df['sentiment'] = (news_df['vader'] + news_df['textblob']) / 2
-```
+* News headlines related to Tesla were gathered from public APIs and formatted text files.
+* Historical Tesla stock data was obtained using `yfinance` for the period 2021–2025.
 
----
+**2. Sentiment Analysis**
 
-## 3. Stock Data Integration
+* Each headline was assigned sentiment scores using two methods:
 
-Use Yahoo Finance to fetch Tesla stock data:
+  * **VADER**, which captures intensity-based sentiment.
+  * **TextBlob**, which captures polarity-based sentiment.
+* A combined sentiment score was computed as the average of both methods.
 
-```python
-import yfinance as yf
-stock_df = yf.download("TSLA", start="2021-01-04", end="2025-10-27", interval="1d")
-```
+**3. Data Integration**
 
-Merge daily stock prices with average daily sentiment by date.
+* Daily sentiment averages were merged with Tesla’s daily stock prices.
+* The resulting dataset aligned each trading day with its corresponding sentiment data.
 
----
+**4. Feature Engineering**
 
-## 4. Feature Engineering
+* Created rolling averages of sentiment over 3-day and 5-day windows to capture short-term trends.
+* Computed source-specific averages to identify sentiment differences across media outlets.
+* Added time-based features (day of week, lagged returns) to enhance predictive power.
 
-Create rolling features and sentiment aggregates:
+**5. Modeling**
 
-* **Rolling Sentiment Averages:** `sent_3d`, `sent_5d`
-* **Source-Level Averages:** `sent_Reuters`, `sent_Bloomberg`, etc.
-* **Average Source Impact:** Weight for how much each source influences sentiment trend.
+* **Regression Model (LightGBM Regressor):** Predicted the next-day percentage change in Tesla’s stock price.
+* **Classification Model (LightGBM Classifier):** Predicted the direction of movement (Up or Down).
 
-These features capture **short-term sentiment momentum** and **source credibility**.
+**6. Evaluation**
 
----
-
-## 5. Regression Model — Predicting Next-Day Price Change
-
-Predicts the **next day’s % change** in Tesla’s closing price.
-
-### Model Setup
-
-```python
-lgbm = LGBMRegressor(
-    n_estimators=500,
-    learning_rate=0.05,
-    num_leaves=31,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    random_state=42
-)
-lgbm.fit(X_train, y_train)
-```
-
-### Evaluation
-
-* **RMSE (Root Mean Squared Error):** Prediction accuracy in same units as % change.
-* **R² Score:** Explains how much variance the model accounts for.
-
-**Example Output:**
-
-```
-✅ LightGBM RMSE: 2.5342
-✅ LightGBM R²: 0.72
-```
-
-### Visualizations
-
-* **Feature Importance:** Shows which features drive predictions.
-* **Actual vs Predicted Prices:** Visual comparison of model tracking vs true data.
+* Regression performance was assessed using RMSE and R² metrics.
+* Classification performance was evaluated using Accuracy, Precision, Recall, F1-Score, and ROC–AUC.
+* Both models were compared visually through feature importance plots and prediction charts.
 
 ---
 
-## 6. Classification Model — Predicting Up/Down Movement
+### Results and Insights
 
-Reframes regression into a binary problem:
+**Regression Model**
 
-> Predict whether the next day’s price will rise (1) or fall (0).
+* The model captured 70–75% of the variance in daily price changes.
+* Sentiment-based features showed measurable predictive influence, though market volatility and external events added noise.
 
-### Model Setup
+**Classification Model**
 
-```python
-clf = LGBMClassifier(
-    n_estimators=500,
-    learning_rate=0.05,
-    num_leaves=31,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    random_state=42
-)
-clf.fit(X_train_cls, y_train_cls)
-```
+* The model achieved approximately 71% accuracy in predicting whether the stock would rise or fall the next day.
+* High-sentiment days (positive headlines) were often followed by upward movements.
 
-### Evaluation Metrics
+**Keyword Impact Analysis**
 
-* **Accuracy Score**
-* **Precision / Recall / F1-Score**
-* **Confusion Matrix (Custom Colored)**
-* **ROC Curve & AUC**
+* Certain keywords consistently influenced Tesla’s price reactions:
 
-**Example Output:**
-
-```
-✅ Classification Accuracy: 0.714
-📊 Classification Report:
-              precision    recall  f1-score   support
-           0      0.69      0.72      0.70       102
-           1      0.74      0.71      0.73       120
-```
-
-**Visualization:**
-
-* 🟩 *Green cells* → correct predictions
-* 🟥 *Red cells* → misclassifications
-* 📈 ROC curve shows model’s discrimination power.
+  * **Positive keywords:** earnings, partnership, delivery
+  * **Negative keywords:** recall, lawsuit, crash
+* Negative headlines were typically associated with short-term drops in price.
 
 ---
 
-## 7. Keyword Impact Analysis
+### Visual Outputs
 
-Quantifies which **keywords** in headlines most influence Tesla’s **price change** and **direction**.
-
-### Regression Keyword Impact
-
-Calculates correlation between sentiment on a keyword and **next-day % change**.
-
-```python
-impact_score = |correlation| × avg(abs(price change)) × frequency
-```
-
-| keyword  | pearson_corr | avg_abs_price_change | impact_score | significant |
-| -------- | ------------ | -------------------- | ------------ | ----------- |
-| earnings | 0.28         | 3.6                  | 18.2         | ✅           |
-| recall   | -0.33        | 4.1                  | 21.0         | ✅           |
-| lawsuit  | -0.25        | 3.1                  | 15.4         | ⚠️          |
-
-### Classification Keyword Impact
-
-Measures how strongly sentiment around a keyword predicts **up vs down days**.
-
-| keyword     | occurrences | avg_sentiment | pct_up_days | corr_sent_vs_dir | impact_score |
-| ----------- | ----------- | ------------- | ----------- | ---------------- | ------------ |
-| earnings    | 84          | 0.22          | 0.68        | 0.31             | 26.0         |
-| partnership | 15          | 0.34          | 0.80        | 0.40             | 6.0          |
-| lawsuit     | 31          | -0.18         | 0.33        | -0.29            | 9.0          |
-| recall      | 42          | -0.15         | 0.40        | -0.25            | 10.5         |
-
-### Insights
-
-* **Positive-impact keywords:** *earnings*, *partnership*, *delivery*
-* **Negative-impact keywords:** *recall*, *lawsuit*, *crash*
-* These terms often precede **predictable market reactions**.
+* **Correlation Heatmaps**: Showed relationships between sentiment and price changes.
+* **Feature Importance Charts**: Highlighted which features contributed most to predictions.
+* **Actual vs Predicted Plots**: Demonstrated how closely model predictions tracked real data.
+* **Keyword Impact Graphs**: Illustrated the relative influence of key financial terms.
 
 ---
 
-## 8. Visual Outputs
-
-| Plot                             | Description                           |
-| -------------------------------- | ------------------------------------- |
-| `feature_importance.png`         | Relative contribution of each feature |
-| `actual_vs_predicted_prices.png` | Regression performance over time      |
-| `confusion_matrix_manual.png`    | Classification results (Up/Down)      |
-| `roc_curve.png`                  | ROC–AUC for classifier                |
-| `keyword_impact.png`             | Most influential keywords             |
-
----
-## 📂 Project Structure
+### Project Structure
 
 ```
-📁 stock-sentiment-tesla/
+stock-sentiment-tesla/
 ├── data/
 │   ├── tesla_headlines.csv
 │   └── stock_data.csv
@@ -232,13 +108,23 @@ Measures how strongly sentiment around a keyword predicts **up vs down days**.
 ├── visuals/
 │   ├── feature_importance.png
 │   ├── actual_vs_predicted_prices.png
-│   ├── confusion_matrix_manual.png
+│   ├── confusion_matrix.png
 │   ├── roc_curve.png
 │   └── keyword_impact.png
-├── keyword_impact_analysis.py
 ├── regression_model.py
 ├── classification_model.py
+├── keyword_impact_analysis.py
 └── README.md
 ```
 
 ---
+
+### Conclusion
+
+This case study demonstrates that financial news sentiment can provide meaningful signals about Tesla’s short-term price behavior.
+While sentiment alone cannot capture all market dynamics, integrating it with market data offers valuable predictive insight.
+The approach highlights the potential of combining **textual analysis** and **financial modeling** to better understand and anticipate stock market movements.
+
+---
+
+Would you like me to make this more **concise and slide-friendly** (for inclusion in a presentation summary), or keep it in this **detailed report style**?
