@@ -1,0 +1,82 @@
+# 1. Install dependencies
+!pip install yfinance pandas numpy matplotlib seaborn --quiet
+
+# 2. Import libraries
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# 3. Define tickers
+tickers = {
+    "TSLA": "Tesla",
+    "GC=F": "Gold",
+    "CL=F": "Crude_Oil"
+}
+
+# 4. Download Yahoo Finance data
+raw_data = yf.download(list(tickers.keys()), start="2021-01-04", end="2025-10-27")
+
+# 5. Extract usable price data robustly
+if isinstance(raw_data.columns, pd.MultiIndex):
+    if 'Adj Close' in raw_data.columns.levels[0]:
+        data = raw_data['Adj Close'].copy()
+    elif 'Close' in raw_data.columns.levels[0]:
+        data = raw_data['Close'].copy()
+    else:
+        raise KeyError("No 'Adj Close' or 'Close' column found in Yahoo Finance data.")
+else:
+    data = raw_data.copy()
+
+# Rename columns for readability
+data.rename(columns=tickers, inplace=True)
+
+# --- ✅ FIXED USD/INR LOADING SECTION ---
+usd_inr = pd.read_csv("/content/USD_INR_data (2).csv", skiprows=2)
+usd_inr.columns = ['Date', 'Close', 'High', 'Low', 'Open', 'Volume']
+usd_inr['Date'] = pd.to_datetime(usd_inr['Date'], errors='coerce')
+usd_inr = usd_inr.dropna(subset=['Date', 'Close'])
+usd_inr = usd_inr[['Date', 'Close']].rename(columns={'Close': 'USD_INR'})
+usd_inr.set_index('Date', inplace=True)
+usd_inr = usd_inr.sort_index()
+
+print("\nUSD/INR data loaded successfully:")
+print(usd_inr.head(), "\n")
+
+# --- Merge USD/INR with main dataset ---
+data = data.merge(usd_inr, left_index=True, right_index=True, how='outer')
+
+# Diagnostics
+print("Combined data columns:", data.columns.tolist())
+print("Missing values per asset:")
+print(data.isna().sum())
+
+# Align to business days
+data_b = data.asfreq('B')
+data_ffill = data_b.ffill().bfill()
+
+# Compute daily percent returns
+returns = data_ffill.pct_change().dropna(how='all')
+
+# Correlation analysis
+corr_matrix = returns.corr(min_periods=30)
+
+print("\n=== Correlation Matrix (Daily Returns) ===")
+print(corr_matrix, "\n")
+
+# Plot correlation heatmap
+plt.figure(figsize=(6,5))
+sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", vmin=-1, vmax=1, fmt=".2f")
+plt.title("Correlation Between Tesla, Gold, Crude Oil, and USD/INR (Daily Returns)")
+plt.show()
+
+# Normalized price comparison
+plt.figure(figsize=(10,6))
+(data_ffill / data_ffill.iloc[0]).plot(ax=plt.gca())
+plt.title("Normalized Price Comparison (Tesla, Gold, Crude Oil, USD/INR)")
+plt.xlabel("Date")
+plt.ylabel("Normalized Price (Start = 1)")
+plt.legend()
+plt.grid(True)
+plt.show()
