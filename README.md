@@ -121,7 +121,7 @@ stock-sentiment-tesla/
 
 ### Conclusion
 
-This case study demonstrates that financial news sentiment can provide meaningful signals about Tesla’s short-term price behavior.
+This case study demonstrates that financial news sentiment shows negative correlation with stock price.
 While sentiment alone cannot capture all market dynamics, integrating it with market data offers valuable predictive insight.
 The approach highlights the potential of combining **textual analysis** and **financial modeling** to better understand and anticipate stock market movements.
 
