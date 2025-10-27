@@ -1,0 +1,59 @@
+import pandas as pd
+import numpy as np
+from scipy import stats
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import roc_auc_score
+
+print("\n" + "="*70)
+print("🔍 KEYWORD DIRECTIONAL IMPACT ANALYSIS")
+print("="*70)
+
+# Merge sentiment + next-day direction
+merged = pd.merge(
+    news_df[['date', 'headline', 'sentiment']],
+    df[['date', 'direction']],
+    on='date', how='left'
+).dropna(subset=['direction'])
+
+keyword_stats = []
+
+for kw in KEYWORDS:
+    mask = merged['headline'].str.contains(kw, case=False, regex=False)
+    kw_subset = merged[mask]
+
+    if len(kw_subset) < 5:
+        continue  # too few occurrences to be meaningful
+
+    pos_rate = kw_subset['direction'].mean()
+    avg_sent = kw_subset['sentiment'].mean()
+    corr, p_corr = stats.pointbiserialr(kw_subset['direction'], kw_subset['sentiment'])
+
+    # Optional AUC-like score based on sentiment polarity as predictor
+    auc_proxy = roc_auc_score(kw_subset['direction'], kw_subset['sentiment']) if len(kw_subset['direction'].unique()) == 2 else np.nan
+
+    keyword_stats.append({
+        'keyword': kw,
+        'occurrences': len(kw_subset),
+        'avg_sentiment': avg_sent,
+        'pct_up_days': pos_rate,
+        'corr_sent_vs_dir': corr,
+        'p_value': p_corr,
+        'auc_proxy': auc_proxy,
+        'impact_score': abs(corr) * len(kw_subset),
+        'significant': 'Yes' if p_corr < 0.05 else 'No'
+    })
+
+kw_df = pd.DataFrame(keyword_stats).dropna(subset=['corr_sent_vs_dir'])
+kw_df = kw_df.sort_values('impact_score', ascending=False).reset_index(drop=True)
+
+print("\n🏆 Top 15 Directionally Impactful Keywords:")
+display(kw_df.head(15))
+
+plt.figure(figsize=(12,6))
+sns.barplot(x='impact_score', y='keyword', data=kw_df.head(15), palette='crest')
+plt.title("Top 15 Keywords by Directional Impact (Up vs Down)", fontsize=14)
+plt.xlabel("Impact Score (|Correlation| × Frequency)")
+plt.ylabel("Keyword")
+plt.show()
+
