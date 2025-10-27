@@ -1,0 +1,68 @@
+#@title Keyword Impact Analysis
+print("\n" + "="*70)
+print("KEYWORD IMPACT ANALYSIS – Which words matter most?")
+print("="*70)
+
+# --- Step 1: Expand headlines into keyword presence matrix ---
+keyword_impact = []
+
+# Merge sentiment and stock change first
+news_with_prices = pd.merge(news_df, df[['date', 'pct_change', 'next_day_change']],
+                            on='date', how='left').dropna(subset=['next_day_change'])
+
+# --- Step 2: Loop through keywords and compute impact metrics ---
+for kw in KEYWORDS:
+    kw_mask = news_with_prices['headline'].str.contains(kw, case=False, regex=False)
+    kw_data = news_with_prices[kw_mask].copy()
+
+    if len(kw_data) < 5:
+        continue  # need enough data for correlation
+
+    # correlation of keyword-day sentiment with next day price change
+    corr_pearson, p_pearson = stats.pearsonr(kw_data['sentiment'], kw_data['next_day_change'])
+    corr_spearman, p_spearman = stats.spearmanr(kw_data['sentiment'], kw_data['next_day_change'])
+
+    # direction agreement: does sentiment sign match price change sign?
+    direction_match = (np.sign(kw_data['sentiment']) == np.sign(kw_data['next_day_change'])).mean()
+
+    # average next-day magnitude
+    avg_abs_change = kw_data['next_day_change'].abs().mean()
+
+    # keyword frequency
+    count = len(kw_data)
+
+    # Impact score = abs(corr) * avg_abs_change * count
+    impact_score = abs(corr_pearson) * avg_abs_change * count if not np.isnan(corr_pearson) else 0
+
+    keyword_impact.append({
+        'keyword': kw,
+        'headline_count': count,
+        'pearson_corr': corr_pearson,
+        'spearman_corr': corr_spearman,
+        'p_value': p_pearson,
+        'directional_accuracy': direction_match,
+        'avg_abs_price_change': avg_abs_change,
+        'impact_score': impact_score,
+        'significant': 'Yes' if p_pearson < 0.05 else 'No'
+    })
+
+# --- Step 3: Build DataFrame and rank keywords ---
+keyword_df = pd.DataFrame(keyword_impact).dropna(subset=['pearson_corr'])
+keyword_df = keyword_df.sort_values('impact_score', ascending=False).reset_index(drop=True)
+
+print("\n📈 TOP KEYWORDS BY IMPACT SCORE")
+print("(Impact Score = |Correlation| × Avg Abs Price Change × Keyword Frequency)\n")
+display(keyword_df.head(15))
+
+# --- Optional: visualize ---
+plt.figure(figsize=(12, 6))
+sns.barplot(
+    x='impact_score',
+    y='keyword',
+    data=keyword_df.head(15),
+    palette='viridis'
+)
+plt.title("Top 15 Most Impactful Keywords on Tesla's Next-Day Price Movement", fontsize=14)
+plt.xlabel("Impact Score")
+plt.ylabel("Keyword")
+plt.show()
