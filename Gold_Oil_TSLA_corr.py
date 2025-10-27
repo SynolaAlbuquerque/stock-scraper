@@ -36,28 +36,65 @@ else:
 # Rename columns for readability
 data.rename(columns=tickers, inplace=True)
 
-# 6. Clean data (remove missing values)
-data = data.dropna()
+# --- Diagnostics before alignment ---
+print("Raw data shape:", data.shape)
+print("Missing values per asset (raw):")
+print(data.isna().sum())
+print()
 
-# 7. Calculate daily returns
-returns = data.pct_change().dropna()
+# Align to business days (B) to get a common calendar for pairwise comparisons
+# This will create rows for all business days in the date range
+data_b = data.asfreq('B')
 
-# 8. Compute correlation matrix
-corr_matrix = returns.corr()
+# Forward-fill then back-fill as a sensible imputation for market-close series
+# Forward-fill uses last known price; backfill fills leading NaNs (if any) from first available
+data_ffill = data_b.ffill().bfill()
 
-print("=== Correlation Matrix (Daily Returns) ===")
+# Show if anything still missing
+print("After asfreq + ffill/bfill, missing per asset:")
+print(data_ffill.isna().sum())
+print()
+
+# Compute daily percent returns on the aligned/fill data
+returns = data_ffill.pct_change().dropna(how='all')
+
+# How many overlapping samples pairwise? We'll print a pairwise count matrix
+def pairwise_overlap_counts(df):
+    cols = df.columns
+    n = len(cols)
+    mat = pd.DataFrame(np.zeros((n,n), dtype=int), index=cols, columns=cols)
+    for i in range(n):
+        for j in range(n):
+            # count rows where both series are finite
+            a = df.iloc[:, i]
+            b = df.iloc[:, j]
+            mat.iloc[i,j] = int(((~a.isna()) & (~b.isna())).sum())
+    return mat
+
+overlap_counts = pairwise_overlap_counts(returns)
+print("Pairwise overlapping samples (# days where both returns available):")
+print(overlap_counts)
+print()
+
+# Compute correlation matrix using a minimum overlapping-sample threshold.
+# Set min_periods to e.g. 30 to avoid spurious correlations from tiny overlaps.
+MIN_OVERLAP = 30
+corr_matrix = returns.corr(min_periods=MIN_OVERLAP)
+
+print("=== Correlation Matrix (Daily Returns) with min_periods={} ===".format(MIN_OVERLAP))
 print(corr_matrix, "\n")
 
-# 9. Plot correlation heatmap
+# Plot correlation heatmap (mask any NaN)
 plt.figure(figsize=(6,4))
-sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
-plt.title("Correlation Between TSLA, Gold, and Crude Oil (Daily Returns)")
+sns.heatmap(corr_matrix.fillna(0), annot=True, cmap="coolwarm", fmt=".2f",
+            vmin=-1, vmax=1, linewidths=.5)
+plt.title("Correlation Between Tesla, Gold, and Crude Oil (Daily Returns)")
 plt.show()
 
-# 10. Plot normalized price trends for comparison
+# Normalized price comparison (use the aligned & ffilled price data)
 plt.figure(figsize=(10,6))
-(data / data.iloc[0]).plot(ax=plt.gca())
-plt.title("Normalized Price Comparison: Tesla vs Gold vs Crude Oil")
+(data_ffill / data_ffill.iloc[0]).plot(ax=plt.gca())
+plt.title("Normalized Price Comparison: Tesla vs Gold vs Crude Oil (Aligned business days)")
 plt.xlabel("Date")
 plt.ylabel("Normalized Price (Start = 1)")
 plt.legend()
