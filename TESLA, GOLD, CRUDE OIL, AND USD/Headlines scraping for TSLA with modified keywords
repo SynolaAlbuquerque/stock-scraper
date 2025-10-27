@@ -1,0 +1,66 @@
+import requests
+import pandas as pd
+
+
+API_KEY = 'wHsgyUdad0RwL2ysrXSGWZpl8sc2JLK1LdxXrmrG'  # <- Replace with your Marketaux key
+endpoint = 'https://api.marketaux.com/v1/news/all'
+
+
+search_terms = [
+ 	(‘Tesla’,75)
+(‘Elon Musk’,25)
+]
+language = 'en'
+page_size = 100          # Max per request
+published_after = '2021-01-03'  # Filter articles after this date
+
+
+all_articles = []
+seen_articles = set()  # Cache to track unique title + date combos
+
+
+for term, total_pages in search_terms:
+   for page in range(1, total_pages + 1):
+       params = {
+           'api_token': API_KEY,
+           'search': term,
+           'language': language,
+           'limit': page_size,
+           'page': page,
+           'published_after': published_after
+       }
+       response = requests.get(endpoint, params=params)
+       if response.status_code == 429:
+           print("Rate/credit limit reached. Try again later or upgrade your plan.")
+           break
+       elif response.status_code != 200:
+           print('Error:', response.status_code, response.text)
+           continue
+       articles = response.json().get('data', [])
+       for article in articles:
+           title = article.get('title', '')
+           published_at = article.get('published_at', '')
+           unique_key = (title.lower().strip(), published_at)  # Case-insensitive title + exact date
+           if unique_key not in seen_articles:
+               seen_articles.add(unique_key)
+               all_articles.append({
+                   'title': title,
+                   'description': article.get('description'),
+                   'published_at': published_at,
+                   'url': article.get('url'),
+                   'source': article.get('source')
+               })
+
+
+df = pd.DataFrame(all_articles)
+
+
+# Final dedup (redundant but ensures cleanliness)
+df.drop_duplicates(subset=['title', 'published_at'], inplace=True)
+
+
+df.to_csv('Tesla_2_EVs_and_Electric_vehicles.csv', index=False)
+
+
+print(f"Fetched {len(df)} unique articles after deduplication.")
+df.head()
