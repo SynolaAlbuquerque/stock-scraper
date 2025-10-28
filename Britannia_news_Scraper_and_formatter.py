@@ -68,3 +68,37 @@ df.to_csv('Britannia_news_scraped.csv', index=False)
 print(f"Fetched {len(df)} unique articles after deduplication.")
 df.head()
 df.Download('Britannia_news_scraped.txt')
+
+'''
+=============================================================================================================================================
+                       Step 2 Parsing headlines
+=============================================================================================================================================
+'''
+import re
+
+def parse_headlines(df):
+    records = []
+    for index, row in df.iterrows():
+        title = row.get('title', '')
+        published_at_str = row.get('published_at', '')
+        source = row.get('source', '')
+
+        date = None
+        if published_at_str:
+            try:
+                # Assuming the published_at is in the format 'YYYY-MM-DDTHH:MM:SS.SSSSSSZ'
+                date = pd.to_datetime(published_at_str, errors='coerce')
+            except Exception as e:
+                print(f"Error parsing date '{published_at_str}': {e}")
+                date = None
+
+        if title and date is not None and source:
+            records.append({'date': date, 'headline': title.strip(), 'source': source.strip()})
+
+    return pd.DataFrame(records)
+
+news_df = parse_headlines(df)
+# Ensure news_df has both date and source columns before dropping NA
+news_df = news_df.dropna(subset=['date', 'source']).sort_values('date').reset_index(drop=True)
+print(f"Parsed {len(news_df)} headlines with dates and sources.")
+display(news_df.head())
