@@ -2,20 +2,26 @@ import requests
 import pandas as pd
 
 
-API_KEY = 'lJoJrAEMcfYXMlKKK4q8R4uTWNKkRGypBJOIov1X'  # <- Replace with your Marketaux key
+API_KEY = 'xs0tHq5wPJqU02ILqZ6gwGpreZi06UorFP8Zgtgz'  # <- Replace with your Marketaux key
 endpoint = 'https://api.marketaux.com/v1/news/all'
 
 
 search_terms = [
-        ('FMCG',25),
-('Britannia',25),
-        ('Indian market',30),
-        ('Britannia quarterly results', 20)
-
+    ('Britannia Industries', 20),
+    ('FMCG sector India', 15),
+    ('Inflation and input cost', 10),
+    ('Rural demand recovery', 10),
+    ('Britannia quarterly results', 10),
+    ('Product launches and expansion', 8),
+    ('Food inflation India', 7),
+    ('Dairy and bakery segment growth', 6),
+    ('Commodity price fluctuation', 6),
+    ('Consumer spending trends', 5),
+    ('Distribution network expansion', 3)
 ]
 language = 'en'
 page_size = 100          # Max per request
-published_after = '2021-01-03'  # Filter articles after this date
+published_after = '2024-01-03'  # Filter articles after this date
 
 
 all_articles = []
@@ -67,7 +73,7 @@ df.to_csv('Britannia_news_scraped.csv', index=False)
 
 print(f"Fetched {len(df)} unique articles after deduplication.")
 df.head()
-df.Download('Britannia_news_scraped.txt')
+
 
 '''
 =============================================================================================================================================
@@ -116,7 +122,7 @@ df = news_df.copy().reset_index(drop=True)
 # Convert date to a clean readable format
 df['date'] = pd.to_datetime(df['date']).dt.strftime("%d %b %Y, %I:%M %p")
 
-# Format text 
+# Format text
 formatted_lines = []
 for i, row in df.iterrows():
     formatted_lines.append(f"{i+1}. {row['headline']}\nSource: {row['source']}\nPublished on: {row['date']}\n")
@@ -129,4 +135,4 @@ with open("parsed_headlines_nicely_formatted.txt", "w", encoding="utf-8") as f:
     f.write(formatted_text)
 
 # Download the file
-files.download("parsed_headlines_nicely_formatted.txt")
+files.download("parsed_headlines_nicely_formatted_final.txt")
