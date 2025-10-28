@@ -102,3 +102,31 @@ news_df = parse_headlines(df)
 news_df = news_df.dropna(subset=['date', 'source']).sort_values('date').reset_index(drop=True)
 print(f"Parsed {len(news_df)} headlines with dates and sources.")
 display(news_df.head())
+
+'''
+=======================================================================================================================================================
+                     step 3 downloading nicely formatted text file
+=======================================================================================================================================================
+'''
+from google.colab import files
+import pandas as pd
+
+df = news_df.copy().reset_index(drop=True)
+
+# Convert date to a clean readable format
+df['date'] = pd.to_datetime(df['date']).dt.strftime("%d %b %Y, %I:%M %p")
+
+# Format text 
+formatted_lines = []
+for i, row in df.iterrows():
+    formatted_lines.append(f"{i+1}. {row['headline']}\nSource: {row['source']}\nPublished on: {row['date']}\n")
+
+# Join all formatted lines
+formatted_text = "\n".join(formatted_lines)
+
+# Save as .txt file
+with open("parsed_headlines_nicely_formatted.txt", "w", encoding="utf-8") as f:
+    f.write(formatted_text)
+
+# Download the file
+files.download("parsed_headlines_nicely_formatted.txt")
